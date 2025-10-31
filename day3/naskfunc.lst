@@ -1,0 +1,20 @@
+     1                                  ; naskfunc (真正现代化的 NASM 语法)
+     2                                  ; TAB=4
+     3                                  
+     4                                  ; ---------------------------------
+     5                                  ; BITS, SECTION, GLOBAL 
+     6                                  ; 都是 NASM 的标准指令，不能带方括号
+     7                                  ; [FORMAT] 和 [FILE] 指令已被删除
+     8                                  ; ---------------------------------
+     9                                  
+    10                                  BITS 32         ; 告诉 NASM 编译 32 位代码
+    11                                      
+    12                                  SECTION .text   ; 声明 .text (代码) 段
+    13                                      
+    14                                  GLOBAL  io_hlt ; 声明 _io_hlt 是全局的，C 语言可以找到它
+    15                                      
+    16                                  io_hlt:        ; C 语言的 void io_hlt(void)
+    17 00000000 F4                          HLT
+    18 00000001 C3                          RET         ; C 函数调用必须用 RET (Return) 返回
+    19                                  
+    20                                   
