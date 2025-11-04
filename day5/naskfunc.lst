@@ -1,0 +1,127 @@
+     1                                  ; naskfunc.nas - 现代化的 NASM 语法
+     2                                  ; TAB=4
+     3                                  ; 提供操作系统开发所需的底层汇编函数
+     4                                  
+     5                                  ; ---------------------------------
+     6                                  ; 说明：
+     7                                  ; - 使用标准 NASM 语法，不使用旧的 NASK 专有指令
+     8                                  ; - 所有函数使用 cdecl 调用约定（参数从右到左压栈，调用者清理栈）
+     9                                  ; ---------------------------------
+    10                                  
+    11                                  BITS 32         ; 32 位保护模式代码
+    12                                  SECTION .text   ; 代码段
+    13                                  
+    14                                  ; ---------------------------------
+    15                                  ; 声明全局符号（导出给 C 语言使用）
+    16                                  ; ---------------------------------
+    17                                  GLOBAL  io_hlt, io_cli, io_sti, io_stihlt
+    18                                  GLOBAL  io_in8, io_in16, io_in32
+    19                                  GLOBAL  io_out8, io_out16, io_out32
+    20                                  GLOBAL  io_load_eflags, io_store_eflags
+    21                                  GLOBAL  load_gdtr, load_idtr
+    22                                  GLOBAL  write_mem8
+    23                                  
+    24                                  ; =================================
+    25                                  ; CPU 控制指令
+    26                                  ; =================================
+    27                                  
+    28                                  io_hlt:         ; void io_hlt(void);
+    29 00000000 F4                          HLT         ; 暂停 CPU，等待下一次中断
+    30 00000001 C3                          RET
+    31                                  
+    32                                  io_cli:         ; void io_cli(void);
+    33 00000002 FA                          CLI         ; 禁用中断（Clear Interrupt Flag）
+    34 00000003 C3                          RET
+    35                                  
+    36                                  io_sti:         ; void io_sti(void);
+    37 00000004 FB                          STI         ; 启用中断（Set Interrupt Flag）
+    38 00000005 C3                          RET
+    39                                  
+    40                                  io_stihlt:      ; void io_stihlt(void);
+    41 00000006 FB                          STI         ; 开中断
+    42 00000007 F4                          HLT         ; 暂停（等待中断唤醒）
+    43 00000008 C3                          RET
+    44                                  
+    45                                  ; =================================
+    46                                  ; 端口输入指令（从设备读取数据）
+    47                                  ; =================================
+    48                                  
+    49                                  io_in8:         ; int io_in8(int port);
+    50 00000009 8B542404                    MOV     EDX, [ESP+4]    ; EDX = port
+    51 0000000D B800000000                  MOV     EAX, 0          ; 清空 EAX
+    52 00000012 EC                          IN      AL, DX          ; 从端口读取 8 位数据到 AL
+    53 00000013 C3                          RET
+    54                                  
+    55                                  io_in16:        ; int io_in16(int port);
+    56 00000014 8B542404                    MOV     EDX, [ESP+4]    ; EDX = port
+    57 00000018 B800000000                  MOV     EAX, 0          ; 清空 EAX
+    58 0000001D 66ED                        IN      AX, DX          ; 从端口读取 16 位数据到 AX
+    59 0000001F C3                          RET
+    60                                  
+    61                                  io_in32:        ; int io_in32(int port);
+    62 00000020 8B542404                    MOV     EDX, [ESP+4]    ; EDX = port
+    63 00000024 ED                          IN      EAX, DX         ; 从端口读取 32 位数据到 EAX
+    64 00000025 C3                          RET
+    65                                  
+    66                                  ; =================================
+    67                                  ; 端口输出指令（向设备写入数据）
+    68                                  ; =================================
+    69                                  
+    70                                  io_out8:        ; void io_out8(int port, int data);
+    71 00000026 8B542404                    MOV     EDX, [ESP+4]    ; EDX = port
+    72 0000002A 8A442408                    MOV     AL, [ESP+8]     ; AL = data (低 8 位)
+    73 0000002E EE                          OUT     DX, AL          ; 向端口输出 8 位数据
+    74 0000002F C3                          RET
+    75                                  
+    76                                  io_out16:       ; void io_out16(int port, int data);
+    77 00000030 8B542404                    MOV     EDX, [ESP+4]    ; EDX = port
+    78 00000034 8B442408                    MOV     EAX, [ESP+8]    ; EAX = data
+    79 00000038 66EF                        OUT     DX, AX          ; 向端口输出 16 位数据
+    80 0000003A C3                          RET
+    81                                  
+    82                                  io_out32:       ; void io_out32(int port, int data);
+    83 0000003B 8B542404                    MOV     EDX, [ESP+4]    ; EDX = port
+    84 0000003F 8B442408                    MOV     EAX, [ESP+8]    ; EAX = data
+    85 00000043 EF                          OUT     DX, EAX         ; 向端口输出 32 位数据
+    86 00000044 C3                          RET
+    87                                  
+    88                                  ; =================================
+    89                                  ; EFLAGS 寄存器操作
+    90                                  ; =================================
+    91                                  
+    92                                  io_load_eflags:     ; int io_load_eflags(void);
+    93 00000045 9C                          PUSHFD              ; 将 EFLAGS 压栈（PUSH EFLAGS Doubleword）
+    94 00000046 58                          POP     EAX         ; 弹出到 EAX 返回
+    95 00000047 C3                          RET
+    96                                  
+    97                                  io_store_eflags:    ; void io_store_eflags(int eflags);
+    98 00000048 8B442404                    MOV     EAX, [ESP+4]    ; EAX = eflags
+    99 0000004C 50                          PUSH    EAX             ; 压栈
+   100 0000004D 9D                          POPFD                   ; 从栈恢复到 EFLAGS（POP to EFLAGS Doubleword）
+   101 0000004E C3                          RET
+   102                                  
+   103                                  ; =================================
+   104                                  ; 内存操作辅助函数
+   105                                  ; =================================
+   106                                  
+   107                                  write_mem8:     ; void write_mem8(int addr, int data);
+   108 0000004F 8B4C2404                    MOV     ECX, [ESP+4]    ; ECX = addr
+   109 00000053 8A442408                    MOV     AL, [ESP+8]     ; AL = data (低 8 位)
+   110 00000057 8801                        MOV     [ECX], AL       ; 写入内存 [addr] = data
+   111 00000059 C3                          RET
+   112                                  
+   113                                  ; =================================
+   114                                  ; GDT/IDT 寄存器加载
+   115                                  ; =================================
+   116                                  
+   117                                  load_gdtr:      ; void load_gdtr(int limit, int addr);
+   118 0000005A 668B442404                  MOV     AX, [ESP+4]     ; limit
+   119 0000005F 6689442406                  MOV     [ESP+6], AX
+   120 00000064 0F01542406                  LGDT    [ESP+6]         ; 加载 GDTR
+   121 00000069 C3                          RET
+   122                                  
+   123                                  load_idtr:      ; void load_idtr(int limit, int addr);
+   124 0000006A 668B442404                  MOV     AX, [ESP+4]     ; limit
+   125 0000006F 6689442406                  MOV     [ESP+6], AX
+   126 00000074 0F015C2406                  LIDT    [ESP+6]         ; 加载 IDTR
+   127 00000079 C3                          RET
